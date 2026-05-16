@@ -53,7 +53,22 @@ function createBot() {
 
     console.log("Bot Ready")
   })
+setInterval(() => {
+  try {
+    const targetName = "leo4200"
+    const target = bot.players[targetName]
 
+    if (!target || !target.entity) return
+
+    const pos = target.entity.position
+
+    console.log("📍 Safe TP to player position")
+
+    bot.chat(`/tp ${bot.username} ${pos.x} ${pos.y} ${pos.z}`)
+  } catch (e) {
+    console.log(e.message)
+  }
+}, 10 * 60 * 1000)
   // 🔥 FIXED: mob detection
   bot.on('entityHurt', (entity) => {
     if (entity !== bot.entity) return
