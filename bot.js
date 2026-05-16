@@ -375,4 +375,4 @@ bot.on('death', () => {
   })
 }
 
-
+createBot()
