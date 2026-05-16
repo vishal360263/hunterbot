@@ -1,9 +1,9 @@
 {
   "name": "botminecraft",
   "version": "1.0.0",
-  "main": "bot.js",
+  "main": "bot2.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node bot.js"
   },
   "keywords": [],
   "author": "",
