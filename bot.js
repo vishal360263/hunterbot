@@ -25,6 +25,7 @@ function createBot() {
   let digging = false
   let verticalMode = false
 
+  // 🔥 FIXED: combat system
   let combatTarget = null
   let lastDamageTime = 0
 
@@ -54,9 +55,11 @@ function createBot() {
     console.log("Bot Ready")
   })
 
-  // 🔥 FIXED: mob detection
+  // 🔥 FIXED: better mob detection trigger
   bot.on('entityHurt', (entity) => {
     if (entity !== bot.entity) return
+
+    lastDamageTime = Date.now()
 
     const mob = getNearestDangerMob()
     if (mob) {
@@ -65,6 +68,7 @@ function createBot() {
     }
   })
 
+  // 🔥 FIXED: real hostile mob detection
   function getNearestDangerMob() {
 
     const hostileNames = [
@@ -74,12 +78,15 @@ function createBot() {
     ]
 
     const mobs = Object.values(bot.entities).filter(e => {
+
       if (!e || !e.position) return false
       if (e === bot.entity) return false
 
       const name = (e.name || '').toLowerCase()
 
-      return hostileNames.some(m => name.includes(m)) &&
+      const isHostile = hostileNames.some(m => name.includes(m))
+
+      return isHostile &&
         e.position.distanceTo(bot.entity.position) < 16
     })
 
@@ -93,23 +100,11 @@ function createBot() {
     return mobs[0]
   }
 
-  // 🧠 FIXED BRIDGE CONDITION FUNCTION
-  function shouldBridge(bot, target) {
-
-    const dx = target.position.x - bot.entity.position.x
-    const dz = target.position.z - bot.entity.position.z
-
-    const horizontalDistance = Math.sqrt(dx * dx + dz * dz)
-    const heightDiff = Math.abs(target.position.y - bot.entity.position.y)
-
-    return heightDiff >= 3 && horizontalDistance >= 5
-  }
-
   bot.on('physicsTick', () => {
 
     try {
 
-      // 🧟 MOB PRIORITY
+      // 🔥 PRIORITY: mob fight overrides player hunt
       if (combatTarget && combatTarget.isValid && combatTarget.health > 0) {
 
         const mobDist = bot.entity.position.distanceTo(combatTarget.position)
@@ -135,7 +130,6 @@ function createBot() {
 
       verticalMode = yDiff > 1.2
 
-      // 🧭 PATHFINDER UPDATE
       if (Date.now() - lastGoal > 400) {
 
         let goal
@@ -160,14 +154,16 @@ function createBot() {
         lastGoal = Date.now()
       }
 
-      // 👀 LOOK
       if (distance <= 6) {
         bot.lookAt(target.entity.position.offset(0, 1.5, 0), true)
       }
 
-      bot.setControlState('sprint', !verticalMode)
+      if (!verticalMode) bot.setControlState('sprint', true)
+      else bot.setControlState('sprint', false)
 
-      // ⚔ ATTACK
+      if (yDiff > 0.8) towerUp()
+
+      // ATTACK PLAYER
       if (distance <= 3.5 && !attacking) {
 
         attacking = true
@@ -194,15 +190,8 @@ function createBot() {
 
       const frontBlock = bot.blockAt(bot.entity.position.offset(0, -1, 1))
 
-      // 🧱 ONLY FIXED PART (YOUR REQUEST)
-      if (shouldBridge(bot, target.entity)) {
-
-        if ((!frontBlock || frontBlock.name === 'air') && !bridging) {
-          bridgeForward(target.entity)
-        }
-
-      } else {
-        bridging = false
+      if ((!frontBlock || frontBlock.name === 'air') && !bridging) {
+        bridgeForward(target.entity)
       }
 
     } catch (err) {
@@ -230,6 +219,7 @@ function createBot() {
       if (!below) return
 
       bot.setControlState('sprint', false)
+
       await bot.look(bot.entity.yaw, 0)
 
       bot.setControlState('jump', true)
@@ -248,7 +238,41 @@ function createBot() {
     } catch {}
   }
 
-  // 🧱 BRIDGE
+ function giveKit() {
+  try {
+    bot.chat("/give riya minecraft:wooden_sword 1")
+    bot.chat("/give riya minecraft:golden_apple 5")
+    bot.chat("/give riya minecraft:stone_pickaxe 1")
+    bot.chat("/effect give riya minecraft:regeneration infinite")
+    bot.chat("i am coming destroyer :) ")
+    
+  
+    bot.chat("/give riya minecraft:stone 124")
+  } catch (err) {
+    console.log("Kit error:", err.message)
+  }
+}
+bot.once('spawn', () => {
+
+  console.log("Bot first spawn → giving kit")
+
+  setTimeout(giveKit, 2000)
+})
+bot.on('death', () => {
+
+  console.log("Bot died → waiting for respawn kit")
+
+  setTimeout(() => {
+
+    // wait extra time for full respawn sync
+    setTimeout(() => {
+      console.log("Respawn kit giving...")
+      giveKit()
+    }, 3000)
+
+  }, 1000)
+})
+  // BRIDGE
   async function bridgeForward(target) {
 
     try {
@@ -300,43 +324,8 @@ function createBot() {
       bridging = false
     }
   }
-  
 
- function giveKit() {
-  try {
-    bot.chat("/give riya minecraft:wooden_sword 1")
-    bot.chat("/give riya minecraft:golden_apple 5")
-    bot.chat("/give riya minecraft:stone_pickaxe 1")
-    bot.chat("/effect give riya minecraft:regeneration infinite")
-    bot.chat("i am coming destroyer :) ")
-    
-  
-    bot.chat("/give riya minecraft:stone 124")
-  } catch (err) {
-    console.log("Kit error:", err.message)
-  }
-}
-bot.once('spawn', () => {
-
-  console.log("Bot first spawn → giving kit")
-
-  setTimeout(giveKit, 2000)
-})
-bot.on('death', () => {
-
-  console.log("Bot died → waiting for respawn kit")
-
-  setTimeout(() => {
-
-    // wait extra time for full respawn sync
-    setTimeout(() => {
-      console.log("Respawn kit giving...")
-      giveKit()
-    }, 3000)
-
-  }, 1000)
-})
-  // 🧨 BREAK BLOCKS
+  // BREAK BLOCKS
   async function breakBlocks(target) {
 
     try {
@@ -364,6 +353,7 @@ bot.on('death', () => {
 
         if (bot.canDigBlock(block) &&
             block.position.distanceTo(bot.entity.position) > 1.5) {
+
           await bot.dig(block)
         }
       }
@@ -386,3 +376,5 @@ bot.on('death', () => {
 }
 
 createBot()
+
+      
