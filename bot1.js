@@ -10,7 +10,7 @@ function createBot() {
   const bot = mineflayer.createBot({
     host: 'leo4201.aternos.me',
     port: 36966,
-    username: 'HunterBot2'   // 🔥 CHANGED
+    username: 'parkhi'
   })
 
   bot.loadPlugin(pathfinder)
@@ -23,124 +23,357 @@ function createBot() {
   let lastGoal = 0
   let bridging = false
   let digging = false
-  let combatTarget = null
+  let verticalMode = false
 
-  // 🔥 BOT 2 = slower reaction
-  const REACTION_DELAY = 400 + Math.random() * 600
+  // 🔥 FIXED: combat system
+  let combatTarget = null
+  let lastDamageTime = 0
 
   bot.once('spawn', () => {
 
-    console.log("Hunter Bot 2 Started")
+    console.log("Hunter Bot Started")
 
     mcData = minecraftData(bot.version)
+
     defaultMove = new Movements(bot, mcData)
 
-    // 🔥 Bot 2 is more defensive/support style
-    defaultMove.allowSprinting = true
+    defaultMove.allow1by1towers = true
+    defaultMove.canDig = true
     defaultMove.allowParkour = true
-    defaultMove.maxDropDown = 3
+    defaultMove.allowSprinting = true
+    defaultMove.maxDropDown = 4
 
     bot.pathfinder.setMovements(defaultMove)
 
     bot.autoEat.options = {
       priority: 'foodPoints',
-      startAt: 16, // eats earlier (support role)
+      startAt: 18,
+      bannedFood: [],
       offhand: true
+    }
+
+    console.log("Bot Ready")
+  })
+
+  // 🔥 FIXED: better mob detection trigger
+  bot.on('entityHurt', (entity) => {
+    if (entity !== bot.entity) return
+
+    lastDamageTime = Date.now()
+
+    const mob = getNearestDangerMob()
+    if (mob) {
+      combatTarget = mob
+      bot.pvp.attack(mob)
     }
   })
 
-  // 🔥 DIFFERENT AI LOOP
-  bot.on('physicsTick', () => {
+  // 🔥 FIXED: real hostile mob detection
+  function getNearestDangerMob() {
 
-    const target = bot.players["leo4200"]
-    if (!target || !target.entity) return
+    const hostileNames = [
+      'zombie', 'skeleton', 'creeper', 'spider',
+      'enderman', 'witch', 'drowned', 'husk',
+      'slime', 'phantom', 'pillager'
+    ]
 
-    const dist = bot.entity.position.distanceTo(target.entity.position)
+    const mobs = Object.values(bot.entities).filter(e => {
 
-    // 🔥 Bot 2 attacks from SIDE (flank behavior)
-    const offsetPos = target.entity.position.offset(
-      Math.sin(Date.now() / 500) * 2, // side movement
-      0,
-      Math.cos(Date.now() / 500) * 2
+      if (!e || !e.position) return false
+      if (e === bot.entity) return false
+
+      const name = (e.name || '').toLowerCase()
+
+      const isHostile = hostileNames.some(m => name.includes(m))
+
+      return isHostile &&
+        e.position.distanceTo(bot.entity.position) < 16
+    })
+
+    if (mobs.length === 0) return null
+
+    mobs.sort((a, b) =>
+      a.position.distanceTo(bot.entity.position) -
+      b.position.distanceTo(bot.entity.position)
     )
 
-    if (Date.now() - lastGoal > 800) {   // slower updates than Bot1
+    return mobs[0]
+  }
 
-      bot.pathfinder.setGoal(
-        new goals.GoalNear(
-          offsetPos.x,
-          offsetPos.y,
-          offsetPos.z,
-          2   // keeps distance, not direct rush
-        )
-      )
+  bot.on('physicsTick', () => {
 
-      lastGoal = Date.now()
-    }
+    try {
 
-    // 🔥 Bot 2 attacks later + only if close
-    if (dist <= 4 && !attacking) {
+      // 🔥 PRIORITY: mob fight overrides player hunt
+      if (combatTarget && combatTarget.isValid && combatTarget.health > 0) {
 
-      attacking = true
+        const mobDist = bot.entity.position.distanceTo(combatTarget.position)
 
-      setTimeout(() => {
+        if (mobDist < 16) {
+          bot.pvp.attack(combatTarget)
+          return
+        } else {
+          combatTarget = null
+        }
+      }
+
+      const target = bot.players["leo4200"]
+
+      if (!target || !target.entity) {
+        bot.pvp.stop()
+        bot.pathfinder.setGoal(null)
+        return
+      }
+
+      const distance = bot.entity.position.distanceTo(target.entity.position)
+      const yDiff = target.entity.position.y - bot.entity.position.y
+
+      verticalMode = yDiff > 1.2
+
+      if (Date.now() - lastGoal > 400) {
+
+        let goal
+
+        if (!verticalMode) {
+          goal = new goals.GoalNear(
+            target.entity.position.x,
+            target.entity.position.y,
+            target.entity.position.z,
+            1
+          )
+        } else {
+          goal = new goals.GoalNear(
+            target.entity.position.x,
+            target.entity.position.y,
+            target.entity.position.z,
+            2
+          )
+        }
+
+        bot.pathfinder.setGoal(goal, true)
+        lastGoal = Date.now()
+      }
+
+      if (distance <= 6) {
+        bot.lookAt(target.entity.position.offset(0, 1.5, 0), true)
+      }
+
+      if (!verticalMode) bot.setControlState('sprint', true)
+      else bot.setControlState('sprint', false)
+
+      if (yDiff > 0.8) towerUp()
+
+      // ATTACK PLAYER
+      if (distance <= 3.5 && !attacking) {
+
+        attacking = true
 
         const weapon =
+          bot.inventory.items().find(i => i.name.includes('wooden_sword')) ||
+          bot.inventory.items().find(i => i.name.includes('diamond_sword')) ||
           bot.inventory.items().find(i => i.name.includes('iron_sword')) ||
-          bot.inventory.items().find(i => i.name.includes('stone_sword'))
+          bot.inventory.items().find(i => i.name.includes('axe'))
 
         if (weapon) bot.equip(weapon, 'hand')
 
-        bot.setControlState('strafeLeft', Math.random() > 0.5)
-        bot.setControlState('strafeRight', Math.random() <= 0.5)
+        if (bot.entity.onGround) {
+          bot.setControlState('jump', true)
+          setTimeout(() => bot.setControlState('jump', false), 120)
+        }
 
         bot.pvp.attack(target.entity)
 
-        setTimeout(() => {
-          bot.setControlState('strafeLeft', false)
-          bot.setControlState('strafeRight', false)
-          attacking = false
-        }, 600)
+        setTimeout(() => attacking = false, 500)
+      }
 
-      }, REACTION_DELAY)
-    }
+      if (!digging) breakBlocks(target.entity)
 
-    // 🔥 LESS BRIDGING (support style only)
-    if (dist > 6 && Math.random() < 0.02) {
-      bridgeSupport(target.entity)
+      const frontBlock = bot.blockAt(bot.entity.position.offset(0, -1, 1))
+
+      if ((!frontBlock || frontBlock.name === 'air') && !bridging) {
+        bridgeForward(target.entity)
+      }
+
+    } catch (err) {
+      console.log("AI Error:", err.message)
     }
   })
 
-  // 🔥 SIMPLE SUPPORT BRIDGE (not aggressive spam)
-  async function bridgeSupport(target) {
+  // 🧱 TOWER
+  async function towerUp() {
     try {
-      const block = bot.inventory.items().find(i =>
-        i.name.includes('cobblestone') ||
-        i.name.includes('dirt')
+
+      if (bot.entity.velocity.y > 0.15) return
+
+      const blockItem = bot.inventory.items().find(item =>
+        item.name.includes('cobblestone') ||
+        item.name.includes('stone') ||
+        item.name.includes('dirt') ||
+        item.name.includes('planks')
       )
 
-      if (!block) return
+      if (!blockItem) return
+      await bot.equip(blockItem, 'hand')
 
-      await bot.equip(block, 'hand')
+      const below = bot.blockAt(bot.entity.position.offset(0, -1, 0))
+      if (!below) return
 
-      const front = bot.blockAt(bot.entity.position.offset(0, -1, 1))
-      if (!front || front.name !== 'air') return
+      bot.setControlState('sprint', false)
 
-      bot.setControlState('sneak', true)
-      await bot.placeBlock(front, new Vec3(0, 1, 0))
-      bot.setControlState('sneak', false)
+      await bot.look(bot.entity.yaw, 0)
+
+      bot.setControlState('jump', true)
+
+      setTimeout(async () => {
+        try {
+          await bot.placeBlock(below, new Vec3(0, 1, 0))
+        } catch {}
+      }, 50)
+
+      setTimeout(() => {
+        bot.setControlState('jump', false)
+        bot.setControlState('sprint', true)
+      }, 180)
 
     } catch {}
   }
 
-  bot.on('death', () => console.log("Bot 2 died"))
-  bot.on('error', console.log)
+ function giveKit() {
+  try {
+    bot.chat("/give HunterBot1 minecraft:wooden_sword 1")
+    bot.chat("/give HunterBot1 minecraft:golden_apple 5")
+    bot.chat("/give HunterBot1 minecraft:stone_pickaxe 1")
+    bot.chat("/effect give HunterBot1 minecraft:regeneration infinite")
+    bot.chat("i am coming destroyer :) ")
+    
+  
+    bot.chat("/give HunterBot1 minecraft:stone 124")
+  } catch (err) {
+    console.log("Kit error:", err.message)
+  }
+}
+bot.once('spawn', () => {
+
+  console.log("Bot first spawn → giving kit")
+
+  setTimeout(giveKit, 2000)
+})
+bot.on('death', () => {
+
+  console.log("Bot died → waiting for respawn kit")
+
+  setTimeout(() => {
+
+    // wait extra time for full respawn sync
+    setTimeout(() => {
+      console.log("Respawn kit giving...")
+      giveKit()
+    }, 3000)
+
+  }, 1000)
+})
+  // BRIDGE
+  async function bridgeForward(target) {
+
+    try {
+
+      bridging = true
+
+      const dir = target.position.minus(bot.entity.position)
+
+      const dx = Math.sign(dir.x)
+      const dz = Math.sign(dir.z)
+
+      const front = bot.entity.position.floored().offset(dx, -1, dz)
+
+      const block = bot.blockAt(front)
+
+      if (!block || block.name === 'air') {
+
+        const placeBlock =
+          bot.inventory.items().find(i =>
+            i.name.includes('cobblestone') ||
+            i.name.includes('dirt') ||
+            i.name.includes('stone')
+          )
+
+        if (!placeBlock) {
+          bridging = false
+          return
+        }
+
+        await bot.equip(placeBlock, 'hand')
+
+        const ref = bot.blockAt(front.offset(0, -1, 0))
+        if (!ref) {
+          bridging = false
+          return
+        }
+
+        bot.setControlState('sneak', true)
+
+        await bot.lookAt(front.offset(0.5, 0, 0.5))
+        await bot.placeBlock(ref, new Vec3(0, 1, 0))
+
+        bot.setControlState('sneak', false)
+      }
+
+      bridging = false
+
+    } catch {
+      bridging = false
+    }
+  }
+
+  // BREAK BLOCKS
+  async function breakBlocks(target) {
+
+    try {
+
+      digging = true
+
+      const dir = target.position.minus(bot.entity.position)
+
+      const checkPos = bot.entity.position.floored().offset(
+        Math.sign(dir.x),
+        1,
+        Math.sign(dir.z)
+      )
+
+      const block = bot.blockAt(checkPos)
+
+      if (block &&
+        block.name !== 'air' &&
+        !block.name.includes('bedrock') &&
+        !block.name.includes('obsidian')) {
+
+        const tool = bot.pathfinder.bestHarvestTool(block)
+
+        if (tool) await bot.equip(tool, 'hand')
+
+        if (bot.canDigBlock(block) &&
+            block.position.distanceTo(bot.entity.position) > 1.5) {
+
+          await bot.dig(block)
+        }
+      }
+
+      digging = false
+
+    } catch {
+      digging = false
+    }
+  }
+
+  bot.on('death', () => console.log("Bot died"))
   bot.on('kicked', console.log)
+  bot.on('error', console.log)
 
   bot.on('end', () => {
-    console.log("Bot 2 reconnecting...")
+    console.log("Reconnecting...")
     setTimeout(createBot, 3000)
   })
 }
+
 createBot()
 
