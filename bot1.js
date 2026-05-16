@@ -1,4 +1,3 @@
-
 const mineflayer = require('mineflayer')
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const pvp = require('mineflayer-pvp').plugin
@@ -26,24 +25,16 @@ function createBot() {
   let digging = false
   let verticalMode = false
 
+  // 🔥 FIXED: combat system
   let combatTarget = null
   let lastDamageTime = 0
-
-  // ✅ NEW: smart check
-  function canUsePathfinder(target) {
-    if (!target) return false
-
-    const dist = bot.entity.position.distanceTo(target.position)
-    const yDiff = Math.abs(target.position.y - bot.entity.position.y)
-
-    return dist < 40 && yDiff < 6
-  }
 
   bot.once('spawn', () => {
 
     console.log("Hunter Bot Started")
 
     mcData = minecraftData(bot.version)
+
     defaultMove = new Movements(bot, mcData)
 
     defaultMove.allow1by1towers = true
@@ -57,15 +48,18 @@ function createBot() {
     bot.autoEat.options = {
       priority: 'foodPoints',
       startAt: 18,
+      bannedFood: [],
       offhand: true
     }
 
     console.log("Bot Ready")
   })
 
-  // 🔥 MOB HIT DETECT
+  // 🔥 FIXED: better mob detection trigger
   bot.on('entityHurt', (entity) => {
     if (entity !== bot.entity) return
+
+    lastDamageTime = Date.now()
 
     const mob = getNearestDangerMob()
     if (mob) {
@@ -74,6 +68,7 @@ function createBot() {
     }
   })
 
+  // 🔥 FIXED: real hostile mob detection
   function getNearestDangerMob() {
 
     const hostileNames = [
@@ -83,10 +78,12 @@ function createBot() {
     ]
 
     const mobs = Object.values(bot.entities).filter(e => {
+
       if (!e || !e.position) return false
       if (e === bot.entity) return false
 
       const name = (e.name || '').toLowerCase()
+
       const isHostile = hostileNames.some(m => name.includes(m))
 
       return isHostile &&
@@ -107,8 +104,9 @@ function createBot() {
 
     try {
 
-      // 🧟 PRIORITY MOB FIGHT
+      // 🔥 PRIORITY: mob fight overrides player hunt
       if (combatTarget && combatTarget.isValid && combatTarget.health > 0) {
+
         const mobDist = bot.entity.position.distanceTo(combatTarget.position)
 
         if (mobDist < 16) {
@@ -132,19 +130,25 @@ function createBot() {
 
       verticalMode = yDiff > 1.2
 
-      // ✅ STOP BRIDGING IF PATH IS POSSIBLE
-      if (canUsePathfinder(target.entity)) {
-        bridging = false
-      }
-
       if (Date.now() - lastGoal > 400) {
 
-        const goal = new goals.GoalNear(
-          target.entity.position.x,
-          target.entity.position.y,
-          target.entity.position.z,
-          verticalMode ? 2 : 1
-        )
+        let goal
+
+        if (!verticalMode) {
+          goal = new goals.GoalNear(
+            target.entity.position.x,
+            target.entity.position.y,
+            target.entity.position.z,
+            1
+          )
+        } else {
+          goal = new goals.GoalNear(
+            target.entity.position.x,
+            target.entity.position.y,
+            target.entity.position.z,
+            2
+          )
+        }
 
         bot.pathfinder.setGoal(goal, true)
         lastGoal = Date.now()
@@ -154,17 +158,20 @@ function createBot() {
         bot.lookAt(target.entity.position.offset(0, 1.5, 0), true)
       }
 
-      bot.setControlState('sprint', !verticalMode)
+      if (!verticalMode) bot.setControlState('sprint', true)
+      else bot.setControlState('sprint', false)
 
       if (yDiff > 0.8) towerUp()
 
-      // ⚔ ATTACK
+      // ATTACK PLAYER
       if (distance <= 3.5 && !attacking) {
 
         attacking = true
 
         const weapon =
-          bot.inventory.items().find(i => i.name.includes('sword')) ||
+          bot.inventory.items().find(i => i.name.includes('wooden_sword')) ||
+          bot.inventory.items().find(i => i.name.includes('diamond_sword')) ||
+          bot.inventory.items().find(i => i.name.includes('iron_sword')) ||
           bot.inventory.items().find(i => i.name.includes('axe'))
 
         if (weapon) bot.equip(weapon, 'hand')
@@ -183,15 +190,8 @@ function createBot() {
 
       const frontBlock = bot.blockAt(bot.entity.position.offset(0, -1, 1))
 
-      // 🧱 ONLY BRIDGE IF PATHFINDER FAILS
-      if (!canUsePathfinder(target.entity)) {
-
-        if ((!frontBlock || frontBlock.name === 'air') && !bridging) {
-          bridgeForward(target.entity)
-        }
-
-      } else {
-        bridging = false
+      if ((!frontBlock || frontBlock.name === 'air') && !bridging) {
+        bridgeForward(target.entity)
       }
 
     } catch (err) {
@@ -238,15 +238,44 @@ function createBot() {
     } catch {}
   }
 
-  // 🧱 BRIDGE (FIXED)
+ function giveKit() {
+  try {
+    bot.chat("/give parkhi minecraft:wooden_sword 1")
+    bot.chat("/give parkhi minecraft:golden_apple 5")
+    bot.chat("/give parkhi minecraft:stone_pickaxe 1")
+    bot.chat("/effect give parkhi minecraft:regeneration infinite")
+    bot.chat("i am coming destroyer :) ")
+    
+  
+    bot.chat("/give parkhi minecraft:stone 124")
+  } catch (err) {
+    console.log("Kit error:", err.message)
+  }
+}
+bot.once('spawn', () => {
+
+  console.log("Bot first spawn → giving kit")
+
+  setTimeout(giveKit, 2000)
+})
+bot.on('death', () => {
+
+  console.log("Bot died → waiting for respawn kit")
+
+  setTimeout(() => {
+
+    // wait extra time for full respawn sync
+    setTimeout(() => {
+      console.log("Respawn kit giving...")
+      giveKit()
+    }, 3000)
+
+  }, 1000)
+})
+  // BRIDGE
   async function bridgeForward(target) {
 
     try {
-
-      if (canUsePathfinder(target)) {
-        bridging = false
-        return
-      }
 
       bridging = true
 
@@ -296,7 +325,7 @@ function createBot() {
     }
   }
 
-  // 🧨 BREAK BLOCKS
+  // BREAK BLOCKS
   async function breakBlocks(target) {
 
     try {
@@ -324,6 +353,7 @@ function createBot() {
 
         if (bot.canDigBlock(block) &&
             block.position.distanceTo(bot.entity.position) > 1.5) {
+
           await bot.dig(block)
         }
       }
@@ -334,25 +364,6 @@ function createBot() {
       digging = false
     }
   }
-
-  function giveKit() {
-    try {
-      bot.chat("/give parkhi minecraft:wooden_sword 1")
-      bot.chat("/give parkhi minecraft:golden_apple 5")
-      bot.chat("/give parkhi minecraft:stone_pickaxe 1")
-      bot.chat("/effect give parkhi minecraft:regeneration infinite")
-      bot.chat("i am coming destroyer :) ")
-      bot.chat("/give parkhi minecraft:stone 124")
-    } catch (err) {
-      console.log("Kit error:", err.message)
-    }
-  }
-
-  bot.once('spawn', () => setTimeout(giveKit, 2000))
-
-  bot.on('death', () => {
-    setTimeout(() => setTimeout(giveKit, 3000), 1000)
-  })
 
   bot.on('death', () => console.log("Bot died"))
   bot.on('kicked', console.log)
