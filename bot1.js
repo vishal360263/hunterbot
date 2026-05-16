@@ -109,16 +109,36 @@ setInterval(() => {
   }
 
   // 🧠 FIXED BRIDGE CONDITION FUNCTION
-  function shouldBridge(bot, target) {
+function shouldBridge(bot, target) {
 
-    const dx = target.position.x - bot.entity.position.x
-    const dz = target.position.z - bot.entity.position.z
+  const bx = bot.entity.position.x
+  const bz = bot.entity.position.z
+  const by = bot.entity.position.y
 
-    const horizontalDistance = Math.sqrt(dx * dx + dz * dz)
-    const heightDiff = Math.abs(target.position.y - bot.entity.position.y)
+  const tx = target.position.x
+  const tz = target.position.z
+  const ty = target.position.y
 
-    return heightDiff >= 3 && horizontalDistance >= 5
-  }
+  const dx = tx - bx
+  const dz = tz - bz
+  const dy = ty - by
+
+  const horizontalX = Math.abs(dx)
+  const horizontalZ = Math.abs(dz)
+
+  const horizontalDistance = Math.sqrt(dx * dx + dz * dz)
+
+  // X priority first
+  const xAligned = horizontalX <= 2
+
+  // then Z check
+  const zNear = horizontalZ <= 5
+
+  // height condition (your rule)
+  const heightOk = dy >= 3
+
+  return xAligned && zNear && heightOk
+}
 
   bot.on('physicsTick', () => {
 
@@ -264,58 +284,61 @@ setInterval(() => {
   }
 
   // 🧱 BRIDGE
-  async function bridgeForward(target) {
+async function bridgeForward(target) {
 
-    try {
+  if (bridging) return
+  bridging = true
 
-      bridging = true
+  try {
 
-      const dir = target.position.minus(bot.entity.position)
+    const botPos = bot.entity.position.floored()
+    const targetPos = target.position
 
-      const dx = Math.sign(dir.x)
-      const dz = Math.sign(dir.z)
+    const dx = Math.sign(targetPos.x - botPos.x)
+    const dz = Math.sign(targetPos.z - botPos.z)
 
-      const front = bot.entity.position.floored().offset(dx, -1, dz)
+    const frontPos = botPos.offset(dx, 0, dz)
 
-      const block = bot.blockAt(front)
+    const frontBlock = bot.blockAt(frontPos)
 
-      if (!block || block.name === 'air') {
-
-        const placeBlock =
-          bot.inventory.items().find(i =>
-            i.name.includes('cobblestone') ||
-            i.name.includes('dirt') ||
-            i.name.includes('stone')
-          )
-
-        if (!placeBlock) {
-          bridging = false
-          return
-        }
-
-        await bot.equip(placeBlock, 'hand')
-
-        const ref = bot.blockAt(front.offset(0, -1, 0))
-        if (!ref) {
-          bridging = false
-          return
-        }
-
-        bot.setControlState('sneak', true)
-
-        await bot.lookAt(front.offset(0.5, 0, 0.5))
-        await bot.placeBlock(ref, new Vec3(0, 1, 0))
-
-        bot.setControlState('sneak', false)
-      }
-
+    if (frontBlock && frontBlock.name !== 'air') {
       bridging = false
-
-    } catch {
-      bridging = false
+      return
     }
+
+    const placeItem = bot.inventory.items().find(i =>
+      i.name.includes('cobblestone') ||
+      i.name.includes('dirt') ||
+      i.name.includes('stone')
+    )
+
+    if (!placeItem) {
+      bridging = false
+      return
+    }
+
+    await bot.equip(placeItem, 'hand')
+
+    const referenceBlock = bot.blockAt(frontPos.offset(0, -1, 0))
+
+    if (!referenceBlock) {
+      bridging = false
+      return
+    }
+
+    bot.setControlState('sneak', true)
+
+    await bot.lookAt(frontPos.offset(0.5, 0, 0.5))
+    await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0))
+
+    bot.setControlState('sneak', false)
+
+  } catch (err) {
+    console.log("Bridge error:", err.message)
   }
-  
+
+  bridging = false
+}
 
  function giveKit() {
   try {
