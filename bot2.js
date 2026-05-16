@@ -6,7 +6,7 @@ const bot1 = spawn('node', ['bot1.js'], {
 })
 
 // 🔥 Start Bot 2
-const bot2 = spawn('node', ['bot2.js'], {
+const bot2 = spawn('node', ['bot.js'], {
   stdio: 'inherit'
 })
 
@@ -22,7 +22,7 @@ bot1.on('close', (code) => {
 bot2.on('close', (code) => {
   console.log(`Bot2 exited with code ${code}, restarting...`)
   setTimeout(() => {
-    spawn('node', ['bot2.js'], { stdio: 'inherit' })
+    spawn('node', ['bot.js'], { stdio: 'inherit' })
   }, 3000)
 })
 
