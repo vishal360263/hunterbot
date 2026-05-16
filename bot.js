@@ -10,7 +10,7 @@ function createBot() {
   const bot = mineflayer.createBot({
     host: 'leo4201.aternos.me',
     port: 36966,
-    username: 'HunterBot1'
+    username: 'riya'
   })
 
   bot.loadPlugin(pathfinder)
