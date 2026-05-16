@@ -142,5 +142,5 @@ function createBot() {
     setTimeout(createBot, 3000)
   })
 }
-
+createBot()
 
