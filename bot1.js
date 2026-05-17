@@ -231,28 +231,29 @@ function createBot() {
     }
   })
 // ===== AUTO TP SYSTEM =====
-
 const tpTarget = "destroyer8055"
 
+// Warn after 4 minutes
 setInterval(() => {
 
   const player = bot.players[tpTarget]
 
-  if (!player || !player.entity) return
+  if (player && player.entity) {
+    bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
+  }
 
-  // warning
-  bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
+}, 4 * 60 * 1000)
 
-  // teleport after 1 min
-  setTimeout(() => {
 
-    const updatedPlayer = bot.players[tpTarget]
+// Teleport after 5 minutes
+setInterval(() => {
 
-    if (updatedPlayer && updatedPlayer.entity) {
-      bot.chat(`/tp parkhi ${tpTarget}`)
-    }
+  const player = bot.players[tpTarget]
 
-  }, 60 * 1000)
+  if (player && player.entity) {
+    bot.chat(`/tp parkhi
+    ${tpTarget}`)
+  }
 
 }, 5 * 60 * 1000)
 
