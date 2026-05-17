@@ -233,29 +233,32 @@ function createBot() {
 // ===== AUTO TP SYSTEM =====
 const tpTarget = "destroyer8055"
 
-// Warn after 4 minutes
+let timer = 300 // 5 min
+
 setInterval(() => {
 
-  const player = bot.players[tpTarget]
+  timer--
 
-  if (player && player.entity) {
-    bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
+  console.log("Timer:", timer)
+
+  // ticking effect in chat every 10 sec
+
+
+  // 1 minute warning
+  if (timer === 60) {
+    bot.chat(`${tpTarget} teleport in 1 minute`)
   }
 
-}, 4 * 60 * 1000)
+  // teleport
+  if (timer <= 0) {
 
+    bot.chat(`/tp riya ${tpTarget}`)
 
-// Teleport after 5 minutes
-setInterval(() => {
-
-  const player = bot.players[tpTarget]
-
-  if (player && player.entity) {
-    bot.chat(`/tp parkhi
-    ${tpTarget}`)
+    // reset timer
+    timer = 300
   }
 
-}, 5 * 60 * 1000)
+}, 1000)
 
   // 🧱 TOWER
   async function towerUp() {
