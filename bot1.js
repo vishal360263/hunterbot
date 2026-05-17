@@ -198,7 +198,32 @@ function createBot() {
       console.log("AI Error:", err.message)
     }
   })
+// ===== AUTO TP SYSTEM =====
 
+const tpTarget = "leo4200"
+
+// Warn 1 minute before teleport
+setInterval(() => {
+
+  const player = bot.players[tpTarget]
+
+  if (player && player.entity) {
+    bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
+  }
+
+}, 9 * 60 * 1000)
+
+
+// Teleport after 10 minutes
+setInterval(() => {
+
+  const player = bot.players[tpTarget]
+
+  if (player && player.entity) {
+    bot.chat(`/tp parkhi ${tpTarget}`)
+  }
+
+}, 10 * 60 * 1000)
   // 🧱 TOWER
   async function towerUp() {
     try {
