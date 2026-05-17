@@ -121,7 +121,7 @@ function createBot() {
         }
       }
 
-      const target = bot.players["leo4200"]
+      const target = bot.players["destroyer8055"]
 
       // PLAYER VISIBLE
       if (target && target.entity) {
@@ -233,7 +233,7 @@ function createBot() {
 
   // ===== AUTO TP SYSTEM =====
 
-  const tpTarget = "leo4200"
+  const tpTarget = "destroyer8055"
 
   // Warn 1 minute before teleport
   setInterval(() => {
