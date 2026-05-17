@@ -24,6 +24,7 @@ function createBot() {
   let bridging = false
   let digging = false
   let verticalMode = false
+  let lastKnownPos = null
 
   // 🔥 FIXED: combat system
   let combatTarget = null
@@ -42,6 +43,7 @@ function createBot() {
     defaultMove.allowParkour = true
     defaultMove.allowSprinting = true
     defaultMove.maxDropDown = 4
+    defaultMove.canSwim = true
 
     bot.pathfinder.setMovements(defaultMove)
 
@@ -53,6 +55,8 @@ function createBot() {
     }
 
     console.log("Bot Ready")
+
+    setTimeout(giveKit, 2000)
   })
 
   // 🔥 FIXED: better mob detection trigger
@@ -117,43 +121,44 @@ function createBot() {
         }
       }
 
-     const target = bot.players["leo4200"]
+      const target = bot.players["leo4200"]
 
-// PLAYER VISIBLE
-if (target && target.entity) {
+      // PLAYER VISIBLE
+      if (target && target.entity) {
 
-  lastKnownPos = target.entity.position.clone()
+        lastKnownPos = target.entity.position.clone()
 
-} else {
+      } else {
 
-  // FOLLOW LAST KNOWN COORDS
-  if (lastKnownPos) {
+        // FOLLOW LAST KNOWN COORDS
+        if (lastKnownPos) {
 
-    const goal = new goals.GoalNear(
-      lastKnownPos.x,
-      lastKnownPos.y,
-      lastKnownPos.z,
-      2
-    )
+          const goal = new goals.GoalNear(
+            lastKnownPos.x,
+            lastKnownPos.y,
+            lastKnownPos.z,
+            2
+          )
 
-    bot.pathfinder.setGoal(goal)
-  }
+          bot.pathfinder.setGoal(goal)
+        }
 
-  return
-}
+        return
+      }
 
       const distance = bot.entity.position.distanceTo(target.entity.position)
       const yDiff = target.entity.position.y - bot.entity.position.y
+
       // WATER CHASE
-if (bot.entity.isInWater) {
+      if (bot.entity.isInWater) {
 
-  bot.setControlState('jump', true)
-  bot.setControlState('forward', true)
+        bot.setControlState('jump', true)
+        bot.setControlState('forward', true)
 
-} else {
+      } else {
 
-  bot.setControlState('jump', false)
-}
+        bot.setControlState('jump', false)
+      }
 
       verticalMode = yDiff > 1.2
 
@@ -225,32 +230,33 @@ if (bot.entity.isInWater) {
       console.log("AI Error:", err.message)
     }
   })
-// ===== AUTO TP SYSTEM =====
 
-const tpTarget = "leo4200"
+  // ===== AUTO TP SYSTEM =====
 
-// Warn 1 minute before teleport
-setInterval(() => {
+  const tpTarget = "leo4200"
 
-  const player = bot.players[tpTarget]
+  // Warn 1 minute before teleport
+  setInterval(() => {
 
-  if (player && player.entity) {
-    bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
-  }
+    const player = bot.players[tpTarget]
 
-}, 9 * 60 * 1000)
+    if (player && player.entity) {
+      bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
+    }
 
+  }, 9 * 60 * 1000)
 
-// Teleport after 10 minutes
-setInterval(() => {
+  // Teleport after 10 minutes
+  setInterval(() => {
 
-  const player = bot.players[tpTarget]
+    const player = bot.players[tpTarget]
 
-  if (player && player.entity) {
-    bot.chat(`/tp parkhi ${tpTarget}`)
-  }
+    if (player && player.entity) {
+      bot.chat(`/tp parkhi ${tpTarget}`)
+    }
 
-}, 10 * 60 * 1000)
+  }, 10 * 60 * 1000)
+
   // 🧱 TOWER
   async function towerUp() {
     try {
@@ -265,6 +271,7 @@ setInterval(() => {
       )
 
       if (!blockItem) return
+
       await bot.equip(blockItem, 'hand')
 
       const below = bot.blockAt(bot.entity.position.offset(0, -1, 0))
@@ -290,41 +297,35 @@ setInterval(() => {
     } catch {}
   }
 
- function giveKit() {
-  try {
-    bot.chat("/give parkhi minecraft:wooden_sword 1")
-    bot.chat("/give parkhi minecraft:golden_apple 5")
-    bot.chat("/give parkhi minecraft:stone_pickaxe 1")
-    bot.chat("/effect give parkhi minecraft:regeneration infinite")
-    bot.chat("i am coming destroyer :) ")
-    
-  
-    bot.chat("/give parkhi minecraft:stone 124")
-  } catch (err) {
-    console.log("Kit error:", err.message)
+  function giveKit() {
+    try {
+
+      bot.chat("/give parkhi minecraft:wooden_sword 1")
+      bot.chat("/give parkhi minecraft:golden_apple 5")
+      bot.chat("/give parkhi minecraft:stone_pickaxe 1")
+      bot.chat("/effect give parkhi minecraft:regeneration infinite")
+      bot.chat("i am coming destroyer :) ")
+      bot.chat("/give parkhi minecraft:stone 124")
+
+    } catch (err) {
+      console.log("Kit error:", err.message)
+    }
   }
-}
-bot.once('spawn', () => {
 
-  console.log("Bot first spawn → giving kit")
-  defaultMove.canSwim = true
+  bot.on('death', () => {
 
-  setTimeout(giveKit, 2000)
-})
-bot.on('death', () => {
+    console.log("Bot died → waiting for respawn kit")
 
-  console.log("Bot died → waiting for respawn kit")
-
-  setTimeout(() => {
-
-    // wait extra time for full respawn sync
     setTimeout(() => {
-      console.log("Respawn kit giving...")
-      giveKit()
-    }, 3000)
 
-  }, 1000)
-})
+      setTimeout(() => {
+        console.log("Respawn kit giving...")
+        giveKit()
+      }, 3000)
+
+    }, 1000)
+  })
+
   // BRIDGE
   async function bridgeForward(target) {
 
@@ -358,6 +359,7 @@ bot.on('death', () => {
         await bot.equip(placeBlock, 'hand')
 
         const ref = bot.blockAt(front.offset(0, -1, 0))
+
         if (!ref) {
           bridging = false
           return
@@ -395,17 +397,21 @@ bot.on('death', () => {
 
       const block = bot.blockAt(checkPos)
 
-      if (block &&
+      if (
+        block &&
         block.name !== 'air' &&
         !block.name.includes('bedrock') &&
-        !block.name.includes('obsidian')) {
+        !block.name.includes('obsidian')
+      ) {
 
         const tool = bot.pathfinder.bestHarvestTool(block)
 
         if (tool) await bot.equip(tool, 'hand')
 
-        if (bot.canDigBlock(block) &&
-            block.position.distanceTo(bot.entity.position) > 1.5) {
+        if (
+          bot.canDigBlock(block) &&
+          block.position.distanceTo(bot.entity.position) > 1.5
+        ) {
 
           await bot.dig(block)
         }
@@ -429,5 +435,3 @@ bot.on('death', () => {
 }
 
 createBot()
-
-
