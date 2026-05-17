@@ -252,7 +252,7 @@ function createBot() {
     const player = bot.players[tpTarget]
 
     if (player && player.entity) {
-      bot.chat(`/tp parkhi ${tpTarget}`)
+      bot.chat(`/tp riya ${tpTarget}`)
     }
 
   }, 5 * 60 * 1000)
