@@ -162,7 +162,32 @@ function createBot() {
       else bot.setControlState('sprint', false)
 
       if (yDiff > 0.8) towerUp()
+// ===== AUTO TP SYSTEM =====
 
+const tpTarget = "leo4200"
+
+// Warn 1 minute before teleport
+setInterval(() => {
+
+  const player = bot.players[tpTarget]
+
+  if (player && player.entity) {
+    bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
+  }
+
+}, 9 * 60 * 1000)
+
+
+// Teleport after 10 minutes
+setInterval(() => {
+
+  const player = bot.players[tpTarget]
+
+  if (player && player.entity) {
+    bot.chat(`/tp riya ${tpTarget}`)
+  }
+
+}, 10 * 60 * 1000)
       // ATTACK PLAYER
       if (distance <= 3.5 && !attacking) {
 
