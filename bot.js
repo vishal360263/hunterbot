@@ -117,13 +117,30 @@ function createBot() {
         }
       }
 
-      const target = bot.players["leo4200"]
+    const target = bot.players["leo4200"]
 
-      if (!target || !target.entity) {
-        bot.pvp.stop()
-        bot.pathfinder.setGoal(null)
-        return
-      }
+// PLAYER VISIBLE
+if (target && target.entity) {
+
+  lastKnownPos = target.entity.position.clone()
+
+} else {
+
+  // FOLLOW LAST KNOWN COORDS
+  if (lastKnownPos) {
+
+    const goal = new goals.GoalNear(
+      lastKnownPos.x,
+      lastKnownPos.y,
+      lastKnownPos.z,
+      2
+    )
+
+    bot.pathfinder.setGoal(goal)
+  }
+
+  return
+}
 
       const distance = bot.entity.position.distanceTo(target.entity.position)
       const yDiff = target.entity.position.y - bot.entity.position.y
@@ -280,6 +297,8 @@ setInterval(() => {
 bot.once('spawn', () => {
 
   console.log("Bot first spawn → giving kit")
+  defaultMove.maxDropDown = 4
+  defaultMove.canSwim = true
 
   setTimeout(giveKit, 2000)
 })
