@@ -230,32 +230,31 @@ function createBot() {
       console.log("AI Error:", err.message)
     }
   })
+// ===== AUTO TP SYSTEM =====
 
-  // ===== AUTO TP SYSTEM =====
+const tpTarget = "destroyer8055"
 
-  const tpTarget = "destroyer8055"
+setInterval(() => {
 
-  // Warn 1 minute before teleport
-  setInterval(() => {
+  const player = bot.players[tpTarget]
 
-    const player = bot.players[tpTarget]
+  if (!player || !player.entity) return
 
-    if (player && player.entity) {
-      bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
-    }
+  // warning
+  bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
 
-  }, 4 * 60 * 1000)
+  // teleport after 1 min
+  setTimeout(() => {
 
-  // Teleport after 10 minutes
-  setInterval(() => {
+    const updatedPlayer = bot.players[tpTarget]
 
-    const player = bot.players[tpTarget]
-
-    if (player && player.entity) {
+    if (updatedPlayer && updatedPlayer.entity) {
       bot.chat(`/tp parkhi ${tpTarget}`)
     }
 
-  }, 5 * 60 * 1000)
+  }, 60 * 1000)
+
+}, 5 * 60 * 1000)
 
   // 🧱 TOWER
   async function towerUp() {
