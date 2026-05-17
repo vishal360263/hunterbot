@@ -252,7 +252,7 @@ setInterval(() => {
   // teleport
   if (timer <= 0) {
 
-    bot.chat(`/tp riya ${tpTarget}`)
+    bot.chat(`/tp parkhi ${tpTarget}`)
 
     // reset timer
     timer = 300
