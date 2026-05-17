@@ -244,7 +244,7 @@ function createBot() {
       bot.chat(`${tpTarget} I will teleport to you in 1 minute`)
     }
 
-  }, 9 * 60 * 1000)
+  }, 4 * 60 * 1000)
 
   // Teleport after 10 minutes
   setInterval(() => {
@@ -255,7 +255,7 @@ function createBot() {
       bot.chat(`/tp parkhi ${tpTarget}`)
     }
 
-  }, 10 * 60 * 1000)
+  }, 5 * 60 * 1000)
 
   // 🧱 TOWER
   async function towerUp() {
